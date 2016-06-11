@@ -230,6 +230,7 @@ void InDok()
 {
     my_c++;
     printf("%i  %li InDok %i\n", tid, my_c, IndexOf());
+    show();
 }
 
 void InRepair()
