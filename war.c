@@ -18,6 +18,10 @@ int m = 1;					//liczba wymaganych przez okręt mechaników
 int inRepairTime = 100;
 long my_c=0;					//zegar wirtualny
 
+int DokRequestTime;
+int DokResponseTime;
+int UnlockDokTime;
+
 struct queue *head = NULL;                      //wskaźnik wskazujący na głowę listy stojących w kolejce okrętów
 struct queue *previous, *current = NULL;        //wskaźnik wykorzystywany podczas przeglądania kolejki okrętów
 
@@ -200,7 +204,7 @@ void show()
     }
     pthread_mutex_unlock(&zamek);
 }
-
+/*
 struct packet create_packet(int id, int c, int m)
 {
     struct packet new;
@@ -208,21 +212,24 @@ struct packet create_packet(int id, int c, int m)
     new.c = c;
     new.m = m;
     return new;
-}
+}*/
 
 // PROCEDURY OD ZARZĄDZANIA OKRĘTAMI
 void DokRequest()
 {
     my_c++;
-    add_with_sort(create_packet(tid,my_c,m));
-
+    DokRequestTime = my_c;
+    struct packet packet = {.nadawca_id = tid, .c = DokRequestTime, .m = m};
+    add_with_sort(packet);
+    
     DokRequestSender = 1;
 }
 
 void DokRequestResponse(struct packet packet)
 {
     add_with_sort(packet);
-
+    
+    DokResponseTime = my_c;
     DokResponseSender = packet.nadawca_id;
 }
 
@@ -245,6 +252,8 @@ void Unlock()
     my_c++;
     delete(tid);
     printf("%i  %li Unlock\n", tid, my_c);
+    
+    UnlockDokTime = my_c;
     UnlockDokSender = 1;
 }
 
@@ -254,14 +263,14 @@ void *answer ()
     {
         if(DokRequestSender)
         {
-            struct	packet my_packet = create_packet(tid, my_c, m);
             int i=0;
             for(i=0; i<N; i++)
             {
                 if(i != tid)
                 {
-                    printf("%i  %i SendDokRequest\n", my_packet.nadawca_id, my_packet.c);
-                    MPI_Send( (void*)&my_packet, sizeof(struct packet), MPI_BYTE, i, DokRequestTAG, MPI_COMM_WORLD);
+                    struct packet DokRequestPacket = {.nadawca_id = tid, .c = DokRequestTime, .m = m};
+                    printf("%i  %i SendDokRequest to %i\n", DokRequestPacket.nadawca_id, DokRequestPacket.c, i);
+                    MPI_Send( (void*)&DokRequestPacket, sizeof(struct packet), MPI_BYTE, i, DokRequestTAG, MPI_COMM_WORLD);
                 }
             }
             DokRequestSender = 0;
@@ -269,22 +278,22 @@ void *answer ()
 
         if(DokResponseSender != -1)
         {
-            struct	packet my_packet = create_packet(tid, my_c, m);
-            printf("%i  %li SendDokRequestResponse\n", tid, my_c);
-            MPI_Send( (void*)&my_packet, sizeof(struct packet), MPI_BYTE, DokResponseSender, DokResponseTAG, MPI_COMM_WORLD);
+            struct packet DokResponsePacket = {.nadawca_id = tid, .c = DokResponseTime, .m = m};
+            printf("%i  %i SendDokRequestResponse to %i\n", DokResponsePacket.nadawca_id, DokResponsePacket.c, DokRequestSender);
+            MPI_Send( (void*)&DokResponsePacket, sizeof(struct packet), MPI_BYTE, DokResponseSender, DokResponseTAG, MPI_COMM_WORLD);
 
             DokResponseSender = -1;
         }
 
-        if(UnlockDokSender==1)
+        if(UnlockDokSender)
         {
-            struct	packet my_packet = create_packet(tid, my_c, m);
             int i=0;
             for(i=0; i<N; i++)
                 if(i != tid)
                 {
-                    MPI_Send( (void*)&my_packet, sizeof(struct packet), MPI_BYTE, i, UnlockDokTAG, MPI_COMM_WORLD);
-                    printf("%i  %li SendUnlock\n", tid, my_c);
+                    struct packet UnlockPacket = {.nadawca_id = tid, .c = UnlockDokTime, .m = m};
+                    MPI_Send( (void*)&UnlockPacket, sizeof(struct packet), MPI_BYTE, i, UnlockDokTAG, MPI_COMM_WORLD);
+                    printf("%i  %i SendUnlock to %i\n", UnlockPacket.nadawca_id, UnlockPacket.c, i);
                 }
 
             UnlockDokSender = 0;
