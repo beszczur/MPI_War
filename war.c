@@ -152,10 +152,15 @@ void delete(int nadawca_id)
     while(current != NULL)
     {
         if( current->next != NULL && (current->next)->nadawca_id == nadawca_id )
-            current->next = (current->next)->next;
-        current = current->next;
+        {
+	    current->next = (current->next)->next;
+            pthread_mutex_unlock(&zamek);
+	    return;
+        }
+	current = current->next;
     }
     pthread_mutex_unlock(&zamek);
+    return;
 }
 
 int IndexOf()
@@ -280,7 +285,7 @@ void *answer ()
         if(DokResponseSender != -1)
         {
             struct packet DokResponsePacket = {.nadawca_id = tid, .c = DokResponseTime, .m = m};
-            printf("%i  %i SendDokRequestResponse to %i\n", DokResponsePacket.nadawca_id, DokResponsePacket.c, DokRequestSender);
+            printf("%i  %i SendDokRequestResponse to %i\n", DokResponsePacket.nadawca_id, DokResponsePacket.c, DokResponseSender);
             MPI_Send( (void*)&DokResponsePacket, sizeof(struct packet), MPI_BYTE, DokResponseSender, DokResponseTAG, MPI_COMM_WORLD);
 
             DokResponseSender = -1;
@@ -329,7 +334,7 @@ void *answer ()
 
                 else if(status.MPI_TAG == UnlockDokTAG)
                 {
-                    printf("%i  %li ReceiveUnlock\n", tid, my_c);
+                    printf("%i  %li ReceiveUnlock %i\n", tid, my_c, packet.nadawca_id);
                     delete(packet.nadawca_id);
 		    PositionLastWithTechnican = IndexOfLastWithTechnican();
 		    MyPosition = IndexOf();
@@ -364,6 +369,7 @@ int main(int argc, char **argv)
         //sleep aby wszystkie w jednej chwili nie zaczynały ubiegania się o sekcję krytyczną
        
         while(1){
+	    responses = 0;
 	    MyPosition = IndexOf();
 	    PositionLastWithTechnican = IndexOfLastWithTechnican();         
 	    usleep(rand() % 2000);
@@ -387,6 +393,7 @@ int main(int argc, char **argv)
             InRepair();
 
             Unlock();
+	    usleep(2000);
         }
         while(UnlockDokSender != 0) {}
         pom = 0;
