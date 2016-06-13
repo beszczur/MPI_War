@@ -334,10 +334,13 @@ void *answer ()
 
                 else if(status.MPI_TAG == UnlockDokTAG)
                 {
-                    printf("%i  %li ReceiveUnlock %i\n", tid, my_c, packet.nadawca_id);
+                    show();
+		    printf("%i  %li ReceiveUnlock %i\n", tid, my_c, packet.nadawca_id);
                     delete(packet.nadawca_id);
 		    PositionLastWithTechnican = IndexOfLastWithTechnican();
 		    MyPosition = IndexOf();
+		    printf("Show #2\n");
+		    show();
                 }
             }
         }
@@ -368,6 +371,15 @@ int main(int argc, char **argv)
         Init(argc, argv);
         //sleep aby wszystkie w jednej chwili nie zaczynały ubiegania się o sekcję krytyczną
        
+	/*struct packet packet = {.nadawca_id = 0, .c = 0, .m = 0};
+	struct packet packet2 = {.nadawca_id = 0, .c = 1, .m = 2};
+	add_with_sort(packet);
+	add_with_sort(packet2);
+	show();
+	delete(0);
+	printf("DŻOLO\n");
+	show();*/
+	
         while(1){
 	    responses = 0;
 	    MyPosition = IndexOf();
