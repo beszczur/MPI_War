@@ -15,17 +15,19 @@ int K;                                          //liczba dostępnych doków
 
 int tid;					//id procesu
 int m = 1;					//liczba wymaganych przez okręt mechaników
-int inRepairTime = 100;
 long my_c=0;					//zegar wirtualny
 
-int DokRequestTime;
-int DokResponseTime;
-int UnlockDokTime;
+int DokRequestTime;				//zmienna przechowuje czas wirtualny ustawienia DokRequestSender na wartość 1
+int DokResponseTime;				//zmienna przechowuje czas wirtualny ustawienia wartości !=-1 zmiennej DokResponseSender
+int UnlockDokTime;				//zmienna przechowuje czas wirtualny ustawienia UnlockSender na wartość 1
+
+int PositionLastWithTechnican = 0;		//zmienna przechowuje miejsce w kolejce ostatniego okrętu dala ktorego wystarcza mechaników
+int MyPosition = 0;				//zmienna przechowuje pozycję proceu w kolejce
 
 struct queue *head = NULL;                      //wskaźnik wskazujący na głowę listy stojących w kolejce okrętów
 struct queue *previous, *current = NULL;        //wskaźnik wykorzystywany podczas przeglądania kolejki okrętów
 
-pthread_mutex_t zamek = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t zamek = PTHREAD_MUTEX_INITIALIZER; //zamek, który chroni przed jednoczesnym przeglądanem listy przez dwa wątki
 
 MPI_Request request;
 MPI_Status status;
@@ -38,15 +40,15 @@ int DokResponseSender = -1;                     //zmienna, która informuje wąt
 int UnlockDokSender = 0;                        //zmienna, która informuje wątek komunikacyjny o potrzebie wysłania wiadomości z tagiem UnlockDok
 
 int responses = 0;				//licznik służący do przechowywania liczby odebranych DokResponsów
-int pom = 1;
-int flag = 0;
-int temp = 0;
-pthread_t tid2;
+int pom = 1;					//zmienna sterująca pętlą na wątku komunikacyjnym
+int flag = 0;					//zmienna informująca czy w ramach danego nasłuchiwania pojawiła się wiadomość w kanale
+int temp = 0;					//zmienna informująca czy zostało aktywowane nasłuchiwanie waidomości
+pthread_t tid2;					//zmienna przechowująca id wątku komunikacyjnego
 
 struct packet
 {
     int nadawca_id;				//id nadawcy
-    int c;    				//zegar wirtualny nadawcy
+    int c;    					//zegar wirtualny nadawcy
     int m;					//liczba wymaganych przez okręt mechaników
 };
 
@@ -179,19 +181,25 @@ int IndexOfLastWithTechnican()
 {
     int index = 0;
     int suma = 0;
+    pthread_mutex_lock(&zamek);
     current = head;
-    if(M < head->m)
-        return -1;
     while(current != NULL)
     {
-        suma += current->m;
+	suma += current->m;
         if(suma == M || current->next == NULL)
-            return index;
+        {
+	    pthread_mutex_unlock(&zamek);
+	    return index;
+	}
 	else if (suma > M)
+	{
+	    pthread_mutex_unlock(&zamek);
 	    return index-1;
+	}
         index ++;
         current = current->next;
     }
+    pthread_mutex_unlock(&zamek);
     return index;
 }
 
@@ -311,8 +319,11 @@ void *answer ()
                 my_c = max(my_c, packet.c)+1;
 
                 if(status.MPI_TAG == DokRequestTAG)
-                    DokRequestResponse(packet);
-
+                {
+		     DokRequestResponse(packet);
+		     PositionLastWithTechnican = IndexOfLastWithTechnican();
+		     MyPosition = IndexOf();
+		}
                 else if(status.MPI_TAG == DokResponseTAG)
                     responses++;
 
@@ -320,6 +331,8 @@ void *answer ()
                 {
                     printf("%i  %li ReceiveUnlock\n", tid, my_c);
                     delete(packet.nadawca_id);
+		    PositionLastWithTechnican = IndexOfLastWithTechnican();
+		    MyPosition = IndexOf();
                 }
             }
         }
@@ -338,7 +351,7 @@ void Init(int argc, char **argv)
     MPI_Comm_rank( MPI_COMM_WORLD, &tid );
     pthread_create(&tid2, NULL, &answer, NULL);
     srand(time(NULL) + tid);
-    m = 1 + (int) rand() % M;
+    m = 1 + (int) rand() % (M/2);
     inRepairTime = rand() % 2000;
     printf("Proces %i wymaga %i mechaników, a jego czas naprawy to %i\n", tid, m, inRepairTime);
 }
@@ -353,7 +366,9 @@ int main(int argc, char **argv)
         //sleep aby wszystkie w jednej chwili nie zaczynały ubiegania się o sekcję krytyczną
        
         while(1){
-            usleep(rand() % 2000);
+	    MyPosition = IndexOf();
+	    PositionLastWithTechnican = IndexOfLastWithTechnican();         
+	    usleep(rand() % 2000);
             DokRequest();
 
             //czekaj dopóki wszyscy nie odpowiedzą
@@ -369,7 +384,7 @@ int main(int argc, char **argv)
 
             //czekaj dopóki nie ma dla ciebie wystarczającej liczby techników
             //ODBIÓR
-            while(IndexOfLastWithTechnican() < IndexOf()) {}
+            while(PositionLastWithTechnican < MyPosition) {}
 
             InRepair();
 
@@ -378,7 +393,6 @@ int main(int argc, char **argv)
         while(UnlockDokSender != 0) {}
         pom = 0;
         pthread_join(tid2,NULL);
-        //printf("*************************\n");
         MPI_Finalize();
     }
     return 0;
