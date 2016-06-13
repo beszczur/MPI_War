@@ -245,7 +245,7 @@ void InRepair()
 {
     my_c++;
     printf("%i  %li InRepair %i\n", tid, my_c,m);
-    usleep(inRepairTime);
+    usleep(rand()%2000);
 }
 
 void Unlock()
@@ -352,8 +352,6 @@ void Init(int argc, char **argv)
     pthread_create(&tid2, NULL, &answer, NULL);
     srand(time(NULL) + tid);
     m = 1 + (int) rand() % (M/2);
-    inRepairTime = rand() % 2000;
-    printf("Proces %i wymaga %i mechaników, a jego czas naprawy to %i\n", tid, m, inRepairTime);
 }
 
 int main(int argc, char **argv)
