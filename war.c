@@ -368,7 +368,7 @@ int main(int argc, char **argv)
         printf("Podałeś za mało argumentów\nWymagane N M K\n");
     else
     {
-        Init(argc, argv);
+	Init(argc, argv);
         //sleep aby wszystkie w jednej chwili nie zaczynały ubiegania się o sekcję krytyczną
        
 	/*struct packet packet = {.nadawca_id = 0, .c = 0, .m = 0};
@@ -384,7 +384,7 @@ int main(int argc, char **argv)
 	    responses = 0;
 	    MyPosition = IndexOf();
 	    PositionLastWithTechnican = IndexOfLastWithTechnican();         
-	    usleep(rand() % 2000);
+	    sleep(rand() % 5);
             DokRequest();
 
             //czekaj dopóki wszyscy nie odpowiedzą
