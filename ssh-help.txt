@@ -1,0 +1,10 @@
+1. ssh -l inf1172XX polluks.cs.put.poznan.pl
+2. Your lab password
+3. ssh lab-os-1
+4. git clone https://github.com/beszczur/MPI_War
+5. mpicc war.c -o war
+6. mpirun -machinefile machinefile -np 10 war 10 4 1 > plik
+7. sort -k2 -n plik > plik1
+8. grep InDok plik1 > plik2
+9. vi plik2
+10. Have a lot of fun :)
