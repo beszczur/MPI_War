@@ -185,8 +185,10 @@ int IndexOfLastWithTechnican()
     while(current != NULL)
     {
         suma += current->m;
-        if(suma >= M || current->next == NULL)
+        if(suma == M || current->next == NULL)
             return index;
+	else if (suma > M)
+	    return index-1;
         index ++;
         current = current->next;
     }
@@ -204,15 +206,6 @@ void show()
     }
     pthread_mutex_unlock(&zamek);
 }
-/*
-struct packet create_packet(int id, int c, int m)
-{
-    struct packet new;
-    new.nadawca_id = id;
-    new.c = c;
-    new.m = m;
-    return new;
-}*/
 
 // PROCEDURY OD ZARZĄDZANIA OKRĘTAMI
 void DokRequest()
@@ -243,7 +236,7 @@ void InDok()
 void InRepair()
 {
     my_c++;
-    printf("%i  %li InRepair\n", tid, my_c);
+    printf("%i  %li InRepair %i\n", tid, my_c,m);
     usleep(inRepairTime);
 }
 
@@ -251,7 +244,7 @@ void Unlock()
 {
     my_c++;
     delete(tid);
-    printf("%i  %li Unlock\n", tid, my_c);
+    printf("%i  %li InUnlock\n", tid, my_c);
     
     UnlockDokTime = my_c;
     UnlockDokSender = 1;
